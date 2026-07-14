@@ -1,50 +1,49 @@
 /* ==========================================================================
-   Mini Client CRM — Application Logic
-   Frontend-only. All data lives in JS arrays (no backend, no localStorage).
-   Structured so each function maps cleanly to a future Express/SQLite route:
-     GET/POST/PUT/DELETE /api/clients   and   /api/followups
+   Mini Client CRM — Application Logic (Connected to Express API)
    ========================================================================== */
 
 (function () {
   "use strict";
 
-  /* ---------------------------------------------------------------------
-     1. IN-MEMORY DATA STORE
-  --------------------------------------------------------------------- */
+  const API_BASE = "http://localhost:5000/api";
 
   const LEAD_STATUSES = ["New", "Contacted", "Qualified", "Proposal Sent", "Won", "Lost"];
   const FOLLOWUP_STATUSES = ["Pending", "Completed", "Cancelled"];
 
-  let clients = [
-    { id: 1, name: "Maryam Yousaf", company: "Torchify", email: "meowryam@torchify.com", phone: "0301-2345678", status: "Qualified", notes: "Interested in the annual plan. Needs a demo for his ops team." },
-    { id: 2, name: "Taha Sohail", company: "Studify", email: "tahasohail@studify.it", phone: "0333-1122334", status: "Proposal Sent", notes: "Proposal sent 12 Jul. Waiting on budget approval." },
-    { id: 3, name: "Abiha Jibbran", company: "Wren & Rose", email: "Abiha@wren.pk", phone: "0321-9988776", status: "Contacted", notes: "Second call scheduled. Compare pricing vs current tool." },
-    { id: 4, name: "Hassaan Ahmed", company: "Some fictional company", email: "Hassaan@fictional.com", phone: "0345-6677889", status: "Won", notes: "Signed the annual contract. Onboarding kicked off." },
-    { id: 5, name: "Zainab Mazhar", company: "Mz & Co.", email: "zainab@mz.pk", phone: "0312-4455667", status: "New", notes: "Filled the contact form after the trade expo." },
-    { id: 6, name: "Ammar Ahmed", company: "CODOC IT", email: "ammar@codoc.it", phone: "0300-7788990", status: "Lost", notes: "Went with a competitor due to pricing." },
-    { id: 7, name: "Fazal Zaman", company: "CODOC Consulting", email: "fazal@codoc.com", phone: "0334-5566778", status: "Qualified", notes: "Wants a multi-seat plan for 8 users." },
-    { id: 8, name: "Abdullah Malik", company: "CODOC Solutions", email: "abdullah@codoc.pk", phone: "0322-3344556", status: "New", notes: "Referred by Ahmed Raza." },
-  ];
+  let clients = [];
+  let followups = [];
 
-  let followups = [
-    { id: 1, clientId: 1, date: "2026-07-20", time: "10:00", purpose: "Discovery Call", status: "Pending", remarks: "Bring pricing sheet." },
-    { id: 2, clientId: 2, date: "2026-07-16", time: "14:30", purpose: "CRM Demo", status: "Pending", remarks: "Screen-share the reporting module." },
-    { id: 3, clientId: 3, date: "2026-07-15", time: "11:15", purpose: "Follow-up Call", status: "Pending", remarks: "Confirm if legal has reviewed the contract." },
-    { id: 4, clientId: 4, date: "2026-07-10", time: "09:00", purpose: "Onboarding Kickoff", status: "Completed", remarks: "Walked through account setup." },
-    { id: 5, clientId: 7, date: "2026-07-18", time: "16:00", purpose: "Proposal Walkthrough", status: "Pending", remarks: "" },
-    { id: 6, clientId: 6, date: "2026-07-08", time: "13:00", purpose: "Retention Call", status: "Cancelled", remarks: "Client confirmed they signed with a competitor." },
-  ];
+  /* ---------------------------------------------------------------------
+     1. API FETCH HELPER
+  --------------------------------------------------------------------- */
 
-  const recentActivity = [
-    { text: "Client Ahmed Raza marked as Won", time: "Today, 9:12 AM" },
-    { text: "Proposal sent to Hamza Malik", time: "Yesterday, 4:40 PM" },
-    { text: "Follow-up completed with Sara Ahmed", time: "Yesterday, 11:05 AM" },
-    { text: "New lead added: Usman Tariq", time: "2 days ago" },
-    { text: "Client Bilal Chaudhry marked as Lost", time: "3 days ago" },
-  ];
+  async function apiFetch(endpoint, options = {}) {
+    try {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        ...options,
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || errorData.error || "API request failed");
+      }
+      return await response.json();
+    } catch (err) {
+      showToast(err.message, "error");
+      throw err;
+    }
+  }
 
-  let nextClientId = clients.length + 1;
-  let nextFollowupId = followups.length + 1;
+  async function loadData() {
+    try {
+      clients = await apiFetch("/clients");
+      followups = await apiFetch("/followups");
+    } catch (err) {
+      console.error("Failed to load data from API:", err);
+    }
+  }
 
   /* ---------------------------------------------------------------------
      2. HELPERS
@@ -71,12 +70,14 @@
   }
 
   function formatDate(isoDate) {
+    if (!isoDate) return "";
     const d = new Date(isoDate + "T00:00:00");
     if (isNaN(d)) return isoDate;
     return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   }
 
   function formatTime(time24) {
+    if (!time24) return "";
     const [h, m] = time24.split(":").map(Number);
     const period = h >= 12 ? "PM" : "AM";
     const h12 = h % 12 === 0 ? 12 : h % 12;
@@ -122,13 +123,16 @@
      3. NAVIGATION
   --------------------------------------------------------------------- */
 
-  function switchScreen(screenName) {
+  async function switchScreen(screenName) {
     $$(".screen").forEach((s) => s.classList.remove("active"));
     $("#screen-" + screenName).classList.add("active");
 
     $$(".nav-item").forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.screen === screenName);
     });
+
+    // Refresh data from database
+    await loadData();
 
     // Refresh data relevant to the screen we just entered
     if (screenName === "dashboard") renderDashboard();
@@ -167,112 +171,119 @@
      4. DASHBOARD RENDERING
   --------------------------------------------------------------------- */
 
-  function renderDashboard() {
-    // KPI cards
-    $("#kpi-total-clients").textContent = clients.length;
-    $("#kpi-new-leads").textContent = clients.filter((c) => c.status === "New").length;
+  async function renderDashboard() {
+    try {
+      // Fetch dynamic stats from dashboard API
+      const data = await apiFetch("/dashboard/stats");
+      const stats = data.stats;
+      const reminders = data.reminders;
 
-    const todayIso = new Date().toISOString().slice(0, 10);
-    $("#kpi-followups-today").textContent = followups.filter((f) => f.date === todayIso).length;
-    $("#kpi-won-deals").textContent = clients.filter((c) => c.status === "Won").length;
+      $("#kpi-total-clients").textContent = stats.totalClients;
+      $("#kpi-new-leads").textContent = stats.clientStages["New"] || 0;
+      $("#kpi-followups-today").textContent = stats.totalPendingFollowups;
+      $("#kpi-won-deals").textContent = stats.clientStages["Won"] || 0;
 
-    // Pipeline
-    const pipelineGrid = $("#pipelineGrid");
-    pipelineGrid.innerHTML = LEAD_STATUSES.map((status) => {
-      const count = clients.filter((c) => c.status === status).length;
-      return `
-        <div class="pipeline-stage">
-          <div class="pipeline-count">${count}</div>
-          <div class="pipeline-name">${status}</div>
-        </div>`;
-    }).join("");
+      // Pipeline
+      const pipelineGrid = $("#pipelineGrid");
+      pipelineGrid.innerHTML = LEAD_STATUSES.map((status) => {
+        const count = stats.clientStages[status] || 0;
+        return `
+          <div class="pipeline-stage">
+            <div class="pipeline-count">${count}</div>
+            <div class="pipeline-name">${status}</div>
+          </div>`;
+      }).join("");
 
-    // Upcoming follow-ups (pending, sorted by date/time, top 4)
-    const upcoming = followups
-      .filter((f) => f.status === "Pending")
-      .slice()
-      .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
-      .slice(0, 4);
+      // Upcoming followups (reminders)
+      const upcomingList = $("#upcomingList");
+      if (reminders.length === 0) {
+        upcomingList.innerHTML = `<li class="empty-text">No upcoming follow-ups. Everyone's caught up.</li>`;
+      } else {
+        upcomingList.innerHTML = reminders
+          .map((f) => {
+            const name = f.client_name || "Unknown Client";
+            return `
+              <li class="upcoming-item">
+                <div class="upcoming-avatar">${initials(name)}</div>
+                <div>
+                  <div class="upcoming-name">${name}</div>
+                  <div class="upcoming-purpose">${f.purpose}</div>
+                  <div class="upcoming-time">${formatDate(f.followup_date)} &middot; ${formatTime(f.followup_time)}</div>
+                </div>
+              </li>`;
+          })
+          .join("");
+      }
 
-    const upcomingList = $("#upcomingList");
-    if (upcoming.length === 0) {
-      upcomingList.innerHTML = `<li class="empty-text">No upcoming follow-ups. Everyone's caught up.</li>`;
-    } else {
-      upcomingList.innerHTML = upcoming
-        .map((f) => {
-          const client = getClientById(f.clientId);
-          const name = client ? client.name : "Unknown Client";
-          return `
-            <li class="upcoming-item">
-              <div class="upcoming-avatar">${initials(name)}</div>
-              <div>
-                <div class="upcoming-name">${name}</div>
-                <div class="upcoming-purpose">${f.purpose}</div>
-                <div class="upcoming-time">${formatDate(f.date)} &middot; ${formatTime(f.time)}</div>
-              </div>
-            </li>`;
-        })
+      // Hardcoded activities for UI completeness
+      const hardcodedActivities = [
+        { text: "Client Maryam Yousaf marked as Won", time: "Today, 9:12 AM" },
+        { text: "Proposal sent to Taha Sohail", time: "Yesterday, 4:40 PM" },
+        { text: "Follow-up completed with Abdullah Malik", time: "Yesterday, 11:05 AM" },
+        { text: "New lead added: Fazal Zaman", time: "2 days ago" }
+      ];
+      const activityFeed = $("#activityFeed");
+      activityFeed.innerHTML = hardcodedActivities
+        .map((a) => `<li class="activity-item">${a.text}<span class="activity-time">${a.time}</span></li>`)
         .join("");
-    }
 
-    // Recent activity
-    const activityFeed = $("#activityFeed");
-    activityFeed.innerHTML = recentActivity
-      .map((a) => `<li class="activity-item">${a.text}<span class="activity-time">${a.time}</span></li>`)
-      .join("");
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   /* ---------------------------------------------------------------------
      5. CLIENT TABLE + FILTERING
   --------------------------------------------------------------------- */
 
-  function getFilteredClients() {
-    const query = $("#clientSearch").value.trim().toLowerCase();
+  async function renderClientTable() {
+    const searchQuery = $("#clientSearch").value.trim();
     const statusFilter = $("#clientStatusFilter").value;
 
-    return clients.filter((c) => {
-      const matchesQuery =
-        !query || c.name.toLowerCase().includes(query) || c.company.toLowerCase().includes(query);
-      const matchesStatus = statusFilter === "all" || c.status === statusFilter;
-      return matchesQuery && matchesStatus;
-    });
-  }
+    let endpoint = "/clients";
+    const params = [];
+    if (searchQuery) params.push(`search=${encodeURIComponent(searchQuery)}`);
+    if (statusFilter !== "all") params.push(`status=${encodeURIComponent(statusFilter)}`);
+    if (params.length > 0) endpoint += "?" + params.join("&");
 
-  function renderClientTable() {
-    const tbody = $("#clientTableBody");
-    const emptyState = $("#clientEmptyState");
-    const filtered = getFilteredClients();
+    try {
+      const filtered = await apiFetch(endpoint);
+      const tbody = $("#clientTableBody");
+      const emptyState = $("#clientEmptyState");
 
-    if (filtered.length === 0) {
-      tbody.innerHTML = "";
-      emptyState.hidden = false;
-      return;
+      if (filtered.length === 0) {
+        tbody.innerHTML = "";
+        emptyState.hidden = false;
+        return;
+      }
+      emptyState.hidden = true;
+
+      tbody.innerHTML = filtered
+        .map(
+          (c) => `
+          <tr>
+            <td class="cell-name">${c.full_name}</td>
+            <td>${c.company}</td>
+            <td class="cell-muted">${c.email}</td>
+            <td class="cell-muted">${c.phone || ""}</td>
+            <td>${badge(c.lead_status)}</td>
+            <td class="actions-cell">
+              <button class="btn-icon" data-edit-client="${c.id}" title="Edit client">Edit</button>
+              <button class="btn-icon danger" data-delete-client="${c.id}" title="Delete client">Delete</button>
+            </td>
+          </tr>`
+        )
+        .join("");
+
+      tbody.querySelectorAll("[data-edit-client]").forEach((btn) => {
+        btn.addEventListener("click", () => openEditClientModal(Number(btn.dataset.editClient)));
+      });
+      tbody.querySelectorAll("[data-delete-client]").forEach((btn) => {
+        btn.addEventListener("click", () => openDeleteClientModal(Number(btn.dataset.deleteClient)));
+      });
+    } catch (err) {
+      console.error(err);
     }
-    emptyState.hidden = true;
-
-    tbody.innerHTML = filtered
-      .map(
-        (c) => `
-        <tr>
-          <td class="cell-name">${c.name}</td>
-          <td>${c.company}</td>
-          <td class="cell-muted">${c.email}</td>
-          <td class="cell-muted">${c.phone}</td>
-          <td>${badge(c.status)}</td>
-          <td class="actions-cell">
-            <button class="btn-icon" data-edit-client="${c.id}" title="Edit client">Edit</button>
-            <button class="btn-icon danger" data-delete-client="${c.id}" title="Delete client">Delete</button>
-          </td>
-        </tr>`
-      )
-      .join("");
-
-    tbody.querySelectorAll("[data-edit-client]").forEach((btn) => {
-      btn.addEventListener("click", () => openEditClientModal(Number(btn.dataset.editClient)));
-    });
-    tbody.querySelectorAll("[data-delete-client]").forEach((btn) => {
-      btn.addEventListener("click", () => openDeleteClientModal(Number(btn.dataset.deleteClient)));
-    });
   }
 
   function initClientToolbar() {
@@ -296,20 +307,24 @@
     $("#clientName").focus();
   }
 
-  function openEditClientModal(id) {
-    const client = getClientById(id);
-    if (!client) return;
-    resetClientForm();
-    $("#clientModalTitle").textContent = "Edit Client";
-    $("#clientSubmitBtn").textContent = "Update Client";
-    $("#clientId").value = client.id;
-    $("#clientName").value = client.name;
-    $("#clientCompany").value = client.company;
-    $("#clientEmail").value = client.email;
-    $("#clientPhone").value = client.phone;
-    $("#clientStatus").value = client.status;
-    $("#clientNotes").value = client.notes || "";
-    openModal("clientModalBackdrop");
+  async function openEditClientModal(id) {
+    try {
+      const client = await apiFetch(`/clients/${id}`);
+      if (!client) return;
+      resetClientForm();
+      $("#clientModalTitle").textContent = "Edit Client";
+      $("#clientSubmitBtn").textContent = "Update Client";
+      $("#clientId").value = client.id;
+      $("#clientName").value = client.full_name;
+      $("#clientCompany").value = client.company;
+      $("#clientEmail").value = client.email;
+      $("#clientPhone").value = client.phone || "";
+      $("#clientStatus").value = client.lead_status;
+      $("#clientNotes").value = client.notes || "";
+      openModal("clientModalBackdrop");
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   function validateClientForm() {
@@ -336,115 +351,135 @@
       setFieldError("clientEmail", "Enter a valid email address.");
       valid = false;
     }
-    if (!phone) {
-      setFieldError("clientPhone", "Phone number is required.");
-      valid = false;
-    } else if (!/^[0-9+\-\s]{7,15}$/.test(phone)) {
-      setFieldError("clientPhone", "Enter a valid phone number.");
-      valid = false;
+    if (phone) {
+      if (!/^[0-9+\-\s()]{7,15}$/.test(phone)) {
+        setFieldError("clientPhone", "Enter a valid phone number.");
+        valid = false;
+      }
     }
 
     return valid;
   }
 
-  function handleClientFormSubmit(e) {
+  async function handleClientFormSubmit(e) {
     e.preventDefault();
     if (!validateClientForm()) return;
 
     const id = $("#clientId").value;
     const payload = {
-      name: $("#clientName").value.trim(),
+      full_name: $("#clientName").value.trim(),
       company: $("#clientCompany").value.trim(),
       email: $("#clientEmail").value.trim(),
-      phone: $("#clientPhone").value.trim(),
-      status: $("#clientStatus").value,
-      notes: $("#clientNotes").value.trim(),
+      phone: $("#clientPhone").value.trim() || null,
+      lead_status: $("#clientStatus").value,
+      notes: $("#clientNotes").value.trim() || null,
     };
 
-    if (id) {
-      const client = getClientById(Number(id));
-      Object.assign(client, payload);
-      showToast(`${client.name} was updated.`);
-    } else {
-      const newClient = { id: nextClientId++, ...payload };
-      clients.unshift(newClient);
-      showToast(`${newClient.name} was added as a new client.`);
-    }
+    try {
+      if (id) {
+        await apiFetch(`/clients/${id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        showToast(`${payload.full_name} was updated.`);
+      } else {
+        const newClient = await apiFetch("/clients", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        showToast(`${newClient.full_name} was added as a new client.`);
+      }
 
-    closeModal("clientModalBackdrop");
-    renderClientTable();
-    renderDashboard();
-    populateFollowupClientOptions();
+      closeModal("clientModalBackdrop");
+      await loadData();
+      renderClientTable();
+      renderDashboard();
+      populateFollowupClientOptions();
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   /* ---- Delete Client Modal ---- */
 
   let clientPendingDeleteId = null;
 
-  function openDeleteClientModal(id) {
-    const client = getClientById(id);
-    if (!client) return;
-    clientPendingDeleteId = id;
-    $("#deleteClientName").textContent = client.name;
-    openModal("deleteClientModalBackdrop");
+  async function openDeleteClientModal(id) {
+    try {
+      const client = await apiFetch(`/clients/${id}`);
+      if (!client) return;
+      clientPendingDeleteId = id;
+      $("#deleteClientName").textContent = client.full_name;
+      openModal("deleteClientModalBackdrop");
+    } catch (err) {
+      console.error(err);
+    }
   }
 
-  function confirmDeleteClient() {
+  async function confirmDeleteClient() {
     if (clientPendingDeleteId == null) return;
-    const client = getClientById(clientPendingDeleteId);
-    clients = clients.filter((c) => c.id !== clientPendingDeleteId);
-    followups = followups.filter((f) => f.clientId !== clientPendingDeleteId);
-    showToast(`${client ? client.name : "Client"} was deleted.`);
-    clientPendingDeleteId = null;
-    closeModal("deleteClientModalBackdrop");
-    renderClientTable();
-    renderFollowupTable();
-    renderDashboard();
-    populateFollowupClientOptions();
+    try {
+      await apiFetch(`/clients/${clientPendingDeleteId}`, {
+        method: "DELETE",
+      });
+      showToast("Client and associated followups deleted.");
+      clientPendingDeleteId = null;
+      closeModal("deleteClientModalBackdrop");
+      await loadData();
+      renderClientTable();
+      renderFollowupTable();
+      renderDashboard();
+      populateFollowupClientOptions();
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   /* ---------------------------------------------------------------------
      6. FOLLOW-UP TABLE
   --------------------------------------------------------------------- */
 
-  function renderFollowupTable() {
-    const tbody = $("#followupTableBody");
-    const emptyState = $("#followupEmptyState");
+  async function renderFollowupTable() {
+    try {
+      const sorted = await apiFetch("/followups");
+      const tbody = $("#followupTableBody");
+      const emptyState = $("#followupEmptyState");
 
-    const sorted = followups.slice().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+      if (sorted.length === 0) {
+        tbody.innerHTML = "";
+        emptyState.hidden = false;
+        return;
+      }
+      emptyState.hidden = true;
 
-    if (sorted.length === 0) {
-      tbody.innerHTML = "";
-      emptyState.hidden = false;
-      return;
+      tbody.innerHTML = sorted
+        .map((f) => {
+          const client = getClientById(f.client_id);
+          const name = client ? client.full_name : "Unknown Client";
+          return `
+          <tr>
+            <td class="cell-name">${name}</td>
+            <td>${formatDate(f.followup_date)}</td>
+            <td>${formatTime(f.followup_time)}</td>
+            <td>${f.purpose}</td>
+            <td>${badge(f.status)}</td>
+            <td class="actions-cell">
+              <button class="btn-icon" data-edit-followup="${f.id}" title="Edit follow-up">Edit</button>
+              <button class="btn-icon danger" data-delete-followup="${f.id}" title="Delete follow-up">Delete</button>
+            </td>
+          </tr>`;
+        })
+        .join("");
+
+      tbody.querySelectorAll("[data-edit-followup]").forEach((btn) => {
+        btn.addEventListener("click", () => openEditFollowupModal(Number(btn.dataset.editFollowup)));
+      });
+      tbody.querySelectorAll("[data-delete-followup]").forEach((btn) => {
+        btn.addEventListener("click", () => openDeleteFollowupModal(Number(btn.dataset.deleteFollowup)));
+      });
+    } catch (err) {
+      console.error(err);
     }
-    emptyState.hidden = true;
-
-    tbody.innerHTML = sorted
-      .map((f) => {
-        const client = getClientById(f.clientId);
-        const name = client ? client.name : "Unknown Client";
-        return `
-        <tr>
-          <td class="cell-name">${name}</td>
-          <td>${formatDate(f.date)}</td>
-          <td>${formatTime(f.time)}</td>
-          <td>${f.purpose}</td>
-          <td>${badge(f.status)}</td>
-          <td class="actions-cell">
-            <button class="btn-icon" data-edit-followup="${f.id}" title="Edit follow-up">Edit</button>
-            <button class="btn-icon danger" data-delete-followup="${f.id}" title="Delete follow-up">Delete</button>
-          </td>
-        </tr>`;
-      })
-      .join("");
-
-    tbody.querySelectorAll("[data-edit-followup]").forEach((btn) => {
-      btn.addEventListener("click", () => openEditFollowupModal(Number(btn.dataset.editFollowup)));
-    });
-    tbody.querySelectorAll("[data-delete-followup]").forEach((btn) => {
-      btn.addEventListener("click", () => openDeleteFollowupModal(Number(btn.dataset.deleteFollowup)));
-    });
   }
 
   function populateFollowupClientOptions() {
@@ -452,7 +487,7 @@
     const current = select.value;
     select.innerHTML =
       `<option value="">Select a client...</option>` +
-      clients.map((c) => `<option value="${c.id}">${c.name} — ${c.company}</option>`).join("");
+      clients.map((c) => `<option value="${c.id}">${c.full_name} — ${c.company}</option>`).join("");
     if (current) select.value = current;
   }
 
@@ -472,21 +507,25 @@
     openModal("followupModalBackdrop");
   }
 
-  function openEditFollowupModal(id) {
-    const f = followups.find((x) => x.id === id);
-    if (!f) return;
-    resetFollowupForm();
-    populateFollowupClientOptions();
-    $("#followupModalTitle").textContent = "Edit Follow-Up";
-    $("#followupSubmitBtn").textContent = "Update Follow-Up";
-    $("#followupId").value = f.id;
-    $("#followupClient").value = f.clientId;
-    $("#followupDate").value = f.date;
-    $("#followupTime").value = f.time;
-    $("#followupPurpose").value = f.purpose;
-    $("#followupStatus").value = f.status;
-    $("#followupRemarks").value = f.remarks || "";
-    openModal("followupModalBackdrop");
+  async function openEditFollowupModal(id) {
+    try {
+      const f = await apiFetch(`/followups/${id}`);
+      if (!f) return;
+      resetFollowupForm();
+      populateFollowupClientOptions();
+      $("#followupModalTitle").textContent = "Edit Follow-Up";
+      $("#followupSubmitBtn").textContent = "Update Follow-Up";
+      $("#followupId").value = f.id;
+      $("#followupClient").value = f.client_id;
+      $("#followupDate").value = f.followup_date;
+      $("#followupTime").value = f.followup_time || "";
+      $("#followupPurpose").value = f.purpose;
+      $("#followupStatus").value = f.status;
+      $("#followupRemarks").value = f.remarks || "";
+      openModal("followupModalBackdrop");
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   function validateFollowupForm() {
@@ -501,10 +540,6 @@
       setFieldError("followupDate", "Date is required.");
       valid = false;
     }
-    if (!$("#followupTime").value) {
-      setFieldError("followupTime", "Time is required.");
-      valid = false;
-    }
     if (!$("#followupPurpose").value.trim()) {
       setFieldError("followupPurpose", "Purpose is required.");
       valid = false;
@@ -513,55 +548,76 @@
     return valid;
   }
 
-  function handleFollowupFormSubmit(e) {
+  async function handleFollowupFormSubmit(e) {
     e.preventDefault();
     if (!validateFollowupForm()) return;
 
     const id = $("#followupId").value;
     const payload = {
-      clientId: Number($("#followupClient").value),
-      date: $("#followupDate").value,
-      time: $("#followupTime").value,
+      client_id: Number($("#followupClient").value),
+      followup_date: $("#followupDate").value,
+      followup_time: $("#followupTime").value || null,
       purpose: $("#followupPurpose").value.trim(),
       status: $("#followupStatus").value,
-      remarks: $("#followupRemarks").value.trim(),
+      remarks: $("#followupRemarks").value.trim() || null,
     };
 
-    if (id) {
-      const followup = followups.find((f) => f.id === Number(id));
-      Object.assign(followup, payload);
-      showToast("Follow-up was updated.");
-    } else {
-      followups.unshift({ id: nextFollowupId++, ...payload });
-      showToast("Follow-up was scheduled.");
-    }
+    try {
+      if (id) {
+        await apiFetch(`/followups/${id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        showToast("Follow-up was updated.");
+      } else {
+        await apiFetch("/followups", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        showToast("Follow-up was scheduled.");
+      }
 
-    closeModal("followupModalBackdrop");
-    renderFollowupTable();
-    renderDashboard();
+      closeModal("followupModalBackdrop");
+      await loadData();
+      renderFollowupTable();
+      renderDashboard();
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   /* ---- Delete Follow-Up Modal ---- */
 
   let followupPendingDeleteId = null;
 
-  function openDeleteFollowupModal(id) {
-    const f = followups.find((x) => x.id === id);
-    if (!f) return;
-    followupPendingDeleteId = id;
-    const client = getClientById(f.clientId);
-    $("#deleteFollowupName").textContent = client ? client.name : "this client";
-    openModal("deleteFollowupModalBackdrop");
+  async function openDeleteFollowupModal(id) {
+    try {
+      const f = await apiFetch(`/followups/${id}`);
+      if (!f) return;
+      followupPendingDeleteId = id;
+      const client = getClientById(f.client_id);
+      $("#deleteFollowupName").textContent = client ? client.full_name : "this client";
+      openModal("deleteFollowupModalBackdrop");
+    } catch (err) {
+      console.error(err);
+    }
   }
 
-  function confirmDeleteFollowup() {
+  async function confirmDeleteFollowup() {
     if (followupPendingDeleteId == null) return;
-    followups = followups.filter((f) => f.id !== followupPendingDeleteId);
-    followupPendingDeleteId = null;
-    showToast("Follow-up was deleted.");
-    closeModal("deleteFollowupModalBackdrop");
-    renderFollowupTable();
-    renderDashboard();
+    try {
+      await apiFetch(`/followups/${followupPendingDeleteId}`, {
+        method: "DELETE",
+      });
+      followupPendingDeleteId = null;
+      showToast("Follow-up was deleted.");
+      closeModal("deleteFollowupModalBackdrop");
+      await loadData();
+      renderFollowupTable();
+      renderDashboard();
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   /* ---------------------------------------------------------------------
@@ -571,7 +627,7 @@
   function renderReports() {
     const statusSummary = $("#statusSummary");
     statusSummary.innerHTML = LEAD_STATUSES.map((status) => {
-      const count = clients.filter((c) => c.status === status).length;
+      const count = clients.filter((c) => c.lead_status === status).length;
       return `<div class="summary-row"><span>${status}</span><span class="summary-count">${count}</span></div>`;
     }).join("");
 
@@ -581,12 +637,11 @@
       return `<div class="summary-row"><span>${status}</span><span class="summary-count">${count}</span></div>`;
     }).join("");
 
-    // Quick insights — generated from live data
     const insights = [];
 
     const statusCounts = LEAD_STATUSES.map((status) => ({
       status,
-      count: clients.filter((c) => c.status === status).length,
+      count: clients.filter((c) => c.lead_status === status).length,
     })).filter((s) => s.count > 0);
 
     if (statusCounts.length) {
@@ -597,12 +652,12 @@
     const pendingCount = followups.filter((f) => f.status === "Pending").length;
     insights.push(`${pendingCount} follow-up${pendingCount === 1 ? " is" : "s are"} currently pending.`);
 
-    const wonCount = clients.filter((c) => c.status === "Won").length;
+    const wonCount = clients.filter((c) => c.lead_status === "Won").length;
     const totalCount = clients.length || 1;
     const winRate = Math.round((wonCount / totalCount) * 100);
     insights.push(`Win rate stands at <strong>${winRate}%</strong> across all clients in the system.`);
 
-    const lostCount = clients.filter((c) => c.status === "Lost").length;
+    const lostCount = clients.filter((c) => c.lead_status === "Lost").length;
     if (lostCount > 0) {
       insights.push(`${lostCount} client${lostCount === 1 ? "" : "s"} marked as Lost — worth a follow-up on what could improve.`);
     }
@@ -634,7 +689,7 @@
      9. INIT
   --------------------------------------------------------------------- */
 
-  function init() {
+  async function init() {
     initNav();
     initMobileNav();
     initModalDismiss();
@@ -647,6 +702,9 @@
     $("#openAddFollowupBtn").addEventListener("click", openAddFollowupModal);
     $("#followupForm").addEventListener("submit", handleFollowupFormSubmit);
     $("#confirmDeleteFollowupBtn").addEventListener("click", confirmDeleteFollowup);
+
+    // Initial data fetch from server
+    await loadData();
 
     populateFollowupClientOptions();
     renderDashboard();
