@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini Client CRM</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ============ MOBILE TOP BAR ============ -->
+  <header class="mobile-topbar">
+    <button class="hamburger-btn" id="hamburgerBtn" aria-label="Open navigation">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="mobile-logo">Mini Client CRM</div>
+  </header>
+
+  <!-- ============ OVERLAY (mobile nav backdrop) ============ -->
+  <div class="nav-overlay" id="navOverlay"></div>
+
+  <div class="app-shell">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-mark">MC</span>
+        <span class="logo-text">Mini Client CRM</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-screen="dashboard">
+          <span class="nav-icon">&#9632;</span> Dashboard
+        </button>
+        <button class="nav-item" data-screen="clients">
+          <span class="nav-icon">&#9679;</span> Clients
+        </button>
+        <button class="nav-item" data-screen="followups">
+          <span class="nav-icon">&#9650;</span> Follow-Ups
+        </button>
+        <button class="nav-item" data-screen="reports">
+          <span class="nav-icon">&#9633;</span> Reports
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="user-avatar">SA</div>
+          <div class="user-info">
+            <div class="user-name">Sana Aslam</div>
+            <div class="user-role">Sales Lead</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ============ MAIN CONTENT ============ -->
+    <main class="main-content">
+
+      <!-- ===================== DASHBOARD SCREEN ===================== -->
+      <section class="screen active" id="screen-dashboard">
+        <div class="screen-header">
+          <div>
+            <h1>Dashboard</h1>
+            <p class="screen-subtitle">Here's what's happening with your pipeline today.</p>
+          </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-number" id="kpi-total-clients">0</div>
+            <div class="kpi-label">Total Clients</div>
+            <div class="kpi-trend positive">&#8593; 4 this month</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-number" id="kpi-new-leads">0</div>
+            <div class="kpi-label">New Leads</div>
+            <div class="kpi-trend positive">&#8593; 2 this week</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-number" id="kpi-followups-today">0</div>
+            <div class="kpi-label">Follow-Ups Today</div>
+            <div class="kpi-trend neutral">On schedule</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-number" id="kpi-won-deals">0</div>
+            <div class="kpi-label">Won Deals</div>
+            <div class="kpi-trend positive">&#8593; 1 this week</div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <!-- Lead Pipeline -->
+          <div class="panel pipeline-panel">
+            <div class="panel-header">
+              <h2>Lead Pipeline</h2>
+            </div>
+            <div class="pipeline-grid" id="pipelineGrid"><!-- injected --></div>
+          </div>
+
+          <!-- Upcoming Follow-Ups -->
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Upcoming Follow-Ups</h2>
+              <button class="link-btn" data-screen-link="followups">View all</button>
+            </div>
+            <ul class="upcoming-list" id="upcomingList"><!-- injected --></ul>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Recent Activity</h2>
+            </div>
+            <ul class="activity-feed" id="activityFeed"><!-- injected --></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== CLIENTS SCREEN ===================== -->
+      <section class="screen" id="screen-clients">
+        <div class="screen-header">
+          <div>
+            <h1>Clients</h1>
+            <p class="screen-subtitle">Manage every lead and client record in one place.</p>
+          </div>
+          <button class="btn btn-primary" id="openAddClientBtn">+ Add Client</button>
+        </div>
+
+        <div class="toolbar">
+          <input type="text" class="search-input" id="clientSearch" placeholder="Search by name or company...">
+          <select class="status-filter" id="clientStatusFilter">
+            <option value="all">All Statuses</option>
+            <option value="New">New</option>
+            <option value="Contacted">Contacted</option>
+            <option value="Qualified">Qualified</option>
+            <option value="Proposal Sent">Proposal Sent</option>
+            <option value="Won">Won</option>
+            <option value="Lost">Lost</option>
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Company</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Lead Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="clientTableBody"><!-- injected --></tbody>
+          </table>
+          <div class="empty-state" id="clientEmptyState" hidden>
+            <p class="empty-title">No clients found</p>
+            <p class="empty-text">Try a different search term or clear the status filter.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== FOLLOW-UPS SCREEN ===================== -->
+      <section class="screen" id="screen-followups">
+        <div class="screen-header">
+          <div>
+            <h1>Follow-Ups</h1>
+            <p class="screen-subtitle">Track scheduled calls, demos, and check-ins.</p>
+          </div>
+          <button class="btn btn-primary" id="openAddFollowupBtn">+ Add Follow-Up</button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Purpose</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="followupTableBody"><!-- injected --></tbody>
+          </table>
+          <div class="empty-state" id="followupEmptyState" hidden>
+            <p class="empty-title">No follow-ups scheduled</p>
+            <p class="empty-text">Add a follow-up to keep track of your next client touchpoint.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== REPORTS SCREEN ===================== -->
+      <section class="screen" id="screen-reports">
+        <div class="screen-header">
+          <div>
+            <h1>Reports</h1>
+            <p class="screen-subtitle">A quick read on pipeline health and follow-up load.</p>
+          </div>
+        </div>
+
+        <div class="reports-grid">
+          <div class="panel">
+            <div class="panel-header"><h2>Status Summary</h2></div>
+            <div class="summary-list" id="statusSummary"><!-- injected --></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header"><h2>Follow-Up Summary</h2></div>
+            <div class="summary-list" id="followupSummary"><!-- injected --></div>
+          </div>
+
+          <div class="panel span-full">
+            <div class="panel-header"><h2>Quick Insights</h2></div>
+            <ul class="insight-list" id="insightList"><!-- injected --></ul>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ============ TOAST ============ -->
+  <div class="toast" id="toast"></div>
+
+  <!-- ============ ADD / EDIT CLIENT MODAL ============ -->
+  <div class="modal-backdrop" id="clientModalBackdrop">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h3 id="clientModalTitle">Add Client</h3>
+        <button class="modal-close" data-close-modal="clientModalBackdrop">&times;</button>
+      </div>
+      <form id="clientForm" novalidate>
+        <input type="hidden" id="clientId">
+        <div class="form-group">
+          <label for="clientName">Full Name</label>
+          <input type="text" id="clientName" placeholder="e.g. Ali Khan">
+          <span class="field-error" id="err-clientName"></span>
+        </div>
+        <div class="form-group">
+          <label for="clientCompany">Company</label>
+          <input type="text" id="clientCompany" placeholder="e.g. Khan Textiles">
+          <span class="field-error" id="err-clientCompany"></span>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="clientEmail">Email</label>
+            <input type="text" id="clientEmail" placeholder="name@company.com">
+            <span class="field-error" id="err-clientEmail"></span>
+          </div>
+          <div class="form-group">
+            <label for="clientPhone">Phone</label>
+            <input type="text" id="clientPhone" placeholder="03xx-xxxxxxx">
+            <span class="field-error" id="err-clientPhone"></span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="clientStatus">Lead Status</label>
+          <select id="clientStatus">
+            <option>New</option>
+            <option>Contacted</option>
+            <option>Qualified</option>
+            <option>Proposal Sent</option>
+            <option>Won</option>
+            <option>Lost</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="clientNotes">Notes</label>
+          <textarea id="clientNotes" rows="3" placeholder="Optional notes about this client..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" data-close-modal="clientModalBackdrop">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="clientSubmitBtn">Save Client</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ DELETE CLIENT MODAL ============ -->
+  <div class="modal-backdrop" id="deleteClientModalBackdrop">
+    <div class="modal modal-sm" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h3>Delete Client</h3>
+        <button class="modal-close" data-close-modal="deleteClientModalBackdrop">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete <strong id="deleteClientName"></strong>? This will also remove any related follow-ups. This action cannot be undone.</p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" data-close-modal="deleteClientModalBackdrop">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteClientBtn">Delete Client</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ADD / EDIT FOLLOW-UP MODAL ============ -->
+  <div class="modal-backdrop" id="followupModalBackdrop">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h3 id="followupModalTitle">Add Follow-Up</h3>
+        <button class="modal-close" data-close-modal="followupModalBackdrop">&times;</button>
+      </div>
+      <form id="followupForm" novalidate>
+        <input type="hidden" id="followupId">
+        <div class="form-group">
+          <label for="followupClient">Client</label>
+          <select id="followupClient"></select>
+          <span class="field-error" id="err-followupClient"></span>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="followupDate">Date</label>
+            <input type="date" id="followupDate">
+            <span class="field-error" id="err-followupDate"></span>
+          </div>
+          <div class="form-group">
+            <label for="followupTime">Time</label>
+            <input type="time" id="followupTime">
+            <span class="field-error" id="err-followupTime"></span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="followupPurpose">Purpose</label>
+          <input type="text" id="followupPurpose" placeholder="e.g. Discovery Call">
+          <span class="field-error" id="err-followupPurpose"></span>
+        </div>
+        <div class="form-group">
+          <label for="followupStatus">Status</label>
+          <select id="followupStatus">
+            <option>Pending</option>
+            <option>Completed</option>
+            <option>Cancelled</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="followupRemarks">Remarks</label>
+          <textarea id="followupRemarks" rows="3" placeholder="Optional remarks..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" data-close-modal="followupModalBackdrop">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="followupSubmitBtn">Save Follow-Up</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ DELETE FOLLOW-UP MODAL ============ -->
+  <div class="modal-backdrop" id="deleteFollowupModalBackdrop">
+    <div class="modal modal-sm" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h3>Delete Follow-Up</h3>
+        <button class="modal-close" data-close-modal="deleteFollowupModalBackdrop">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete this follow-up with <strong id="deleteFollowupName"></strong>? This action cannot be undone.</p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" data-close-modal="deleteFollowupModalBackdrop">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteFollowupBtn">Delete Follow-Up</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
