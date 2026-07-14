@@ -1,2 +1,17 @@
+# Dependencies
 node_modules/
+
+# Environment variables
 .env
+.env.local
+
+# SQLite database (local data, managed by DB engineer)
+database/crm.db
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
