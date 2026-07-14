@@ -18,6 +18,7 @@ app.use(express.json());
 // Routes
 app.use('/api/clients', clientRoutes);
 app.use('/api/followups', followupRoutes);
+// Dashboard API endpoint
 app.use('/api/dashboard', dashboardRoutes);
 
 // Root test route
