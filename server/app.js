@@ -17,6 +17,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/clients', clientRoutes);
+// Follow-ups API endpoint
 app.use('/api/followups', followupRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
