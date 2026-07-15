@@ -1,4 +1,4 @@
-INSERT INTO clients
+INSERT OR IGNORE INTO clients
 (full_name, company, email, phone, lead_status, notes)
 
 VALUES
@@ -12,7 +12,7 @@ VALUES
 ('Ahmed Raza', 'Creative Minds', 'ahmed@cm.com', '03331234567', 'Won', 'Project Started');
 
 
-INSERT INTO followups
+INSERT OR IGNORE INTO followups
 (client_id,followup_date,followup_time,purpose,status,remarks)
 
 VALUES
