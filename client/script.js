@@ -5,7 +5,7 @@
 (function () {
   "use strict";
 
-  const API_BASE = "http://localhost:5000/api";
+  const API_BASE = "mini-client-crm-production.up.railway.app";
 
   const LEAD_STATUSES = ["New", "Contacted", "Qualified", "Proposal Sent", "Won", "Lost"];
   const FOLLOWUP_STATUSES = ["Pending", "Completed", "Cancelled"];
