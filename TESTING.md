@@ -208,7 +208,7 @@ Follow-up details updated successfully.
 
 ### Evidence
 
-![Client Validation](docs/screenshots/edit_followup.png)
+![Client Validation](docs/screenshots/edit_follwup.png)
 
 ---
 
